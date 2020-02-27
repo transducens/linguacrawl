@@ -153,8 +153,6 @@ class MultiSiteCrawler(object):
     # Method that expands the list of site-crawlers by adding any URL in the new_seed_urls list
     def _expand_crawlers_list(self):
         try:
-            logging.debug("+++ Going to expand crawlers")
-
             self.new_seed_urls_concurrency_lock.acquire()
             for d, url_set in self.new_seed_urls.items():
                 url_list = list(url_set)
@@ -172,7 +170,6 @@ class MultiSiteCrawler(object):
                     self.curr_crawlers += 1
         finally:
             self.new_seed_urls_concurrency_lock.release()
-        logging.debug("+++ Crawlers expanded\n")
 
     def termsighandler(self, signum, frame):
         logging.info("Stopping crawling by user's SIGTERM")
@@ -185,7 +182,6 @@ class MultiSiteCrawler(object):
 
         self.new_seed_urls_concurrency_lock.acquire()
         for domain, crawler in self.domain_crawlers.items():
-            logging.debug("%s is locked? %s", domain, crawler.url_list_concurrency_lock.locked())
             crawler.interrupt_crawl()
         self.new_seed_urls_concurrency_lock.release()
         logging.info("All interrupted: %s", " _ ".join(list_of_threads))

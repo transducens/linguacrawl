@@ -2,6 +2,7 @@ from posixpath import normpath
 import re
 import tldextract
 from urllib.parse import urlparse
+import logging
 
 
 class Link(object):
@@ -33,7 +34,10 @@ class Link(object):
 
     def get_sub_domain(self):
         parts = self.get_host_parts()
-        return parts.subdomain+"."+parts.domain+"."+parts.suffix
+        if parts.subdomain is None or parts.subdomain == "":
+            return parts.domain+"."+parts.suffix
+        else:
+            return parts.subdomain+"."+parts.domain+"."+parts.suffix
 
     def get_tld(self):
         parts = self.get_host_parts()
