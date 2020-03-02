@@ -10,7 +10,10 @@ class Link(object):
     prefix_filter = ""
 
     def __init__(self, link, in_url=None):
-        self.original_link = re.sub(r'#[^#]*$', '', link)
+        if link is not None:
+            self.original_link = re.sub(r'#[^#]*$', '', link)
+        else:
+            self.original_link = ""
         self._norm_url = None
         self._url_parts = None
         self._host_parts = None
