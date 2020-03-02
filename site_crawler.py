@@ -396,8 +396,9 @@ class SiteCrawler(object):
                                                     http_headers=http_headers)
             self.writer.write_record(record)
             self.crawl_size += sys.getsizeof(doc.text) / 1000000.0
-            self.metadata_writer.write(("%s\t%s\t%s\n" % (doc.url.get_norm_url(), str(doc.encoding), str(doc.get_lang()))).encode())
-            self.metadata_writer.flush()
+            if self.metadata_writer is not None:
+                self.metadata_writer.write(("%s\t%s\t%s\n" % (doc.url.get_norm_url(), str(doc.encoding), str(doc.get_lang()))).encode())
+                self.metadata_writer.flush()
         finally:
             self.file_write_concurrency_lock.release()
 
