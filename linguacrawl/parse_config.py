@@ -9,11 +9,6 @@ import yaml
 import os
 from bitext_scout import BitextScout
 
-# SET THE SEED FOR REPRODUCIBILITY TESTS
-# SEED=4
-# random.seed(SEED)
-
-
 def validate_config(config):
     schema = {
         'user_agent': {'required': True, 'type': 'string'},
@@ -56,30 +51,8 @@ def validate_config(config):
     return v.normalized(config)
 
 
-oparser = argparse.ArgumentParser(
-    description="Script that crawls a website and prints the downloaded documents"
-                "in standard output using WARC format.")
-oparser.add_argument("config", metavar="FILE", nargs="?", help="Config file of the crawler", default=None)
-options = oparser.parse_args()
-
-with open(options.config, 'r') as ymlfile:
-    config = yaml.safe_load(ymlfile)
-
-config = validate_config(config)
-
-seed_urls = []
-if config["seed_urls"] is None:
-    with open(config.seed_urls_from_file, "r") as reader:
-        for line in reader:
-            seed_urls.append(line.strip())
-else:
-    for line in config["seed_urls"]:
-        seed_urls.append(line)
-
-crawler = MultiSiteCrawler(config, BitextScout(config["scout_steps"], config["langs_of_interest"], config["min_langs_in_site"],
-                                               config["mandatory_lang"], config["min_percent_mandatory_lang"]))
-
-# crawler.add_url_filter('\.(jpg|jpeg|gif|png|js|css|swf)$')
-signal.signal(signal.SIGTERM, crawler.termsighandler)
-signal.signal(signal.SIGINT, crawler.termsighandler)
-crawler.start_crawling()
+def parse(config_path):
+    with open(config_path, 'r') as ymlfile:
+        config = yaml.safe_load(ymlfile)
+    config = validate_config(config)
+    return config
