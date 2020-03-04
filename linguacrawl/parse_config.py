@@ -4,10 +4,8 @@ from cerberus import Validator
 import argparse
 import signal
 import sys
-from multi_site_crawler import MultiSiteCrawler
 import yaml
 import os
-from bitext_scout import BitextScout
 
 def validate_config(config):
     schema = {
