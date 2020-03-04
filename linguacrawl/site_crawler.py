@@ -31,8 +31,6 @@ class SiteCrawler(object):
         self.url_list_concurrency_lock = Lock()
         # Concurrency lock to ensure that only one process accesses to write the status and the output WARC file
         self.file_write_concurrency_lock = Lock()
-        # If verbose is True, debuging level is set to INFO; otherwise it is ERROR
-        logging.basicConfig(level=logging.INFO if config["verbose"] else logging.ERROR)
 
         # Domain corresponding to the seed URLs to be crawled
         self.domain = domain
@@ -396,7 +394,7 @@ class SiteCrawler(object):
                                                     http_headers=http_headers)
             self.writer.write_record(record)
             self.crawl_size += sys.getsizeof(doc.text) / 1000000.0
-            if self.metadata_writer is not None:
+            if not self.metadata_writer.closed and self.metadata_writer is not None:
                 self.metadata_writer.write(("%s\t%s\t%s\n" % (doc.url.get_norm_url(), str(doc.encoding), str(doc.get_lang()))).encode())
                 self.metadata_writer.flush()
         finally:
@@ -420,21 +418,17 @@ class SiteCrawler(object):
             self.file_write_concurrency_lock.release()
 
     def save_status(self):
-        try:
-            self.file_write_concurrency_lock.acquire()
-            if self.dumpfile is not None:
-                pickle.dump(self.get_status_object(), open(self.dumpfile, 'wb'))
-        finally:
-            self.file_write_concurrency_lock.release()
+        if self.dumpfile is not None:
+            pickle.dump(self.get_status_object(), open(self.dumpfile, 'wb'))
 
     def interrupt_crawl(self):
+        self.interrupt = True
         try:
-            self.url_list_concurrency_lock.acquire()
-            self.interrupt = True
+            self.file_write_concurrency_lock.acquire()
             self.save_status()
             self.metadata_writer.close()
         finally:
-            self.url_list_concurrency_lock.release()
+            self.file_write_concurrency_lock.release()
 
     def __hash__(self):
         return hash(self.domain)
