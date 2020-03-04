@@ -1,11 +1,12 @@
-import time
 import threading
-from threading import Thread, Lock, BoundedSemaphore
-from link import Link
-from site_crawler import SiteCrawler
+from threading import Thread, Lock, Semaphore
+from .link import Link
+from .site_crawler import SiteCrawler
 import logging
 import copy
 import heapq
+import time
+from queue import Queue
 #import psutil
 #psutil.cpu_percent()
 # SET THE SEED FOR REPRODUCIBILITY TESTS
@@ -35,17 +36,42 @@ class MultiSiteCrawler(object):
             self.curr_crawlers += 1
         self.new_seed_urls = {}
         self.seen_domains = set()
+        self.wait_for_pending_before_dying = Lock()
+        self.number_of_running = 0
         self.pending_to_crawl_concurrency_lock = Lock()
         self.new_seed_urls_concurrency_lock = Lock()
         # List of all the threads created
         self.threads = []
         # Maximum number of threads that will be run at the same time
         self.max_jobs = config["max_jobs"]
-        #self.new_worker_semaphore = BoundedSemaphore(value=self.max_jobs)
+
+        self.new_worker_queue = Queue()
         # If this flag is set to True, next job will clean the list of crawlers before starting a new crawl
         self.remove_stopped_crawlers_from_list = False
         Link.prefix_filter = config["prefix_filter"]
         self.interrupt = False
+
+    def new_running_crawler(self):
+        self.wait_for_pending_before_dying.acquire()
+        self.number_of_running += 1
+        self.wait_for_pending_before_dying.release()
+
+    def new_done_crawler(self):
+        self.wait_for_pending_before_dying.acquire()
+        self.number_of_running -= 1
+        self.wait_for_pending_before_dying.release()
+
+    def get_running_crawlers(self):
+        self.wait_for_pending_before_dying.acquire()
+        output = self.number_of_running
+        self.wait_for_pending_before_dying.release()
+        return output
+
+    def get_pending_crawlers(self):
+        self.wait_for_pending_before_dying.acquire()
+        output = len(self.pending_crawlers)
+        self.wait_for_pending_before_dying.release()
+        return output
 
     def start_crawling(self):
         # If the interrupt flat is not enabled and, either there are crawlers available or there are threads running
@@ -54,19 +80,28 @@ class MultiSiteCrawler(object):
             t = Thread(target=self._pick_crawler_and_run_one_doc)
             self.threads.append(t)
             t.daemon = False
+            self.new_worker_queue.put(t)
+
+        while not self.interrupt and (self.get_pending_crawlers() > 0 or self.get_running_crawlers() > 0):
+            t = self.new_worker_queue.get()
             t.start()
+            import sys
+            sys.stderr.write(str(threading.enumerate())+"\n")
 
     def _pick_crawler_and_run_one_doc(self):
-        while not self.interrupt and (len(self.pending_crawlers) > 0 or threading.active_count() > 1):
-            #try:
-            #self.new_worker_semaphore.acquire()
             crawler = self.pop_crawler_from_heap()
-            if crawler is not None:
+            if crawler is not None and not crawler.interrupt:
+                import sys
+                sys.stderr.write("Thread "+str(threading.current_thread())+" is crawling a site\n")
                 crawler.crawl_one_page()
             else:
+                import sys
+                sys.stderr.write("Thread "+str(threading.current_thread())+" is expaning crawlers list\n")
                 self._expand_crawlers_list()
-        #finally:
-        #    self.new_worker_semaphore.release()
+            t = Thread(target=self._pick_crawler_and_run_one_doc)
+            self.threads.append(t)
+            t.daemon = False
+            self.new_worker_queue.put(t)
 
     def pop_crawler_from_heap(self):
         try:
@@ -85,62 +120,10 @@ class MultiSiteCrawler(object):
         finally:
             self.pending_to_crawl_concurrency_lock.release()
 
-    # def _pick_crawler_and_run_one_doc(self):
-    #     crawled = 0
-    #     # This loop will run for every thread in the multi-site crawler until there are no more websites to crawl
-    #     while len(self.domain_crawlers) > 0 and not self.interrupt:
-    #         crawler = heapq.heappop(self.domain_crawlers)
-    #         crawler.crawl_one_page()
-    #
-    #         # Only one crawler will be able to access the list of websites to crawl at the same time
-    #         self.pending_to_crawl_concurrency_lock.acquire()
-    #         # These variables will allow us to know which positions of the site-crawlers list correspond to crawlers
-    #         # that have been interrupted
-    #         crawler_pos = 0
-    #         interrupted = set()
-    #         # Flag to know if, after looking over the list, at least one crawler could be run
-    #         crawled_a_web = False
-    #         crawled += 1
-    #         for crawler in self.domain_crawlers:
-    #             if crawler.connection_concurrency_lock.locked():
-    #                 crawler_pos += 1
-    #                 continue
-    #             if crawler.is_crawling:
-    #                 crawler_pos += 1
-    #                 continue
-    #             if time.time() < crawler.last_connection+crawler.robots.get_delay():
-    #                 crawler_pos += 1
-    #                 continue
-    #             if crawler.interrupt:
-    #                 interrupted.add(crawler_pos)
-    #                 crawler_pos += 1
-    #                 continue
-    #
-    #             # Before starting crawl, we clean all disabled crawlers found during search
-    #             self._delete_positions_in_crawler_list(interrupted)
-    #
-    #             # New crawler is launched as an independent thread
-    #             crawler.is_crawling = True
-    #             # Once the crawler is running, the worker releases concurrency lock and waits for the crawler to finish
-    #             self.pending_to_crawl_concurrency_lock.release()
-    #             crawler.crawl_one_page()
-    #
-    #             crawled_a_web = True
-    #             if len(crawler.pending_urls) == 0:
-    #                 crawler.interrupt = True
-    #             break
-    #
-    #         # If not crawler could be used, we try
-    #         if not crawled_a_web:
-    #             self._expand_crawlers_list()
-    #             self._clean_crawlers_list()
-    #             self.pending_to_crawl_concurrency_lock.release()
-
     # Method used by the site-crawlers to add new URLs to the new_seed_urls list
     def extend_seed_urls(self, url):
         import sys
         try:
-            sys.stderr.write("+++ Going to extend seed URLs\n")
             self.new_seed_urls_concurrency_lock.acquire()
             if url.get_domain() not in self.seen_domains:
                 if url.get_domain() not in self.new_seed_urls:
@@ -148,7 +131,6 @@ class MultiSiteCrawler(object):
                 self.new_seed_urls[url.get_domain()].add(url)
         finally:
             self.new_seed_urls_concurrency_lock.release()
-        sys.stderr.write("+++ URLs extendned\n")
 
     # Method that expands the list of site-crawlers by adding any URL in the new_seed_urls list
     def _expand_crawlers_list(self):

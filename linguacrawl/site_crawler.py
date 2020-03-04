@@ -6,12 +6,12 @@ import pickle
 import re
 import sys
 import time
-from site_robots import SiteRobots
+from .site_robots import SiteRobots
 from threading import Thread, Lock
 from warcio.statusandheaders import StatusAndHeaders
 from warcio.warcwriter import WARCWriter
-from web_document import WebDocument
-from link import Link
+from .web_document import WebDocument
+from .link import Link
 import os.path
 import socket
 import ssl
@@ -57,6 +57,7 @@ class SiteCrawler(object):
 
         # If interrupt is set to False, crawling stops
         self.interrupt = False
+        self.sleep_thread = None
 
         # Variable that keeps the current size of the crawling
         self.crawl_size = 0.0
@@ -265,6 +266,7 @@ class SiteCrawler(object):
         return False
 
     def crawl_one_page(self):
+        self.multi_site_crawler.new_running_crawler()
         url = self.get_pending_url()
         if not self.interrupt and url is not None:
             if not self.robots.fetch(url, self.max_attempts, self.domain):
@@ -333,15 +335,23 @@ class SiteCrawler(object):
                 self.interrupt = True
         # If the crawler is allowed to continue crawling, wait until delay has passed and continue
         if not self.interrupt:
-            t = Thread(target=self._wait_and_queue)
-            t.daemon = True
-            t.start()
+            self.sleep_thread = Thread(target=self._wait_and_queue)
+            self.sleep_thread.daemon = False
+            self.sleep_thread.name = self.sleep_thread.name + "_sleep"
+            self.sleep_thread.start()
+        else:
+            self.multi_site_crawler.new_done_crawler()
 
     def _wait_and_queue(self):
+        import sys
+        sys.stderr.write("Thread "+str(threading.current_thread())+" is sleeping\n")
+
         sleeptime = self.robots.get_delay() - (time.time() - self.last_connection)
         if sleeptime > 0:
             time.sleep(sleeptime)
         self.multi_site_crawler.crawler_ready(self)
+        self.multi_site_crawler.new_done_crawler()
+        
 
     # Scout is run until the recommendation_ready is ready; once it is, the object scout is deleted
     def run_scout(self, doc):
