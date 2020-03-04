@@ -1,11 +1,12 @@
-import time
 import threading
-from threading import Thread, Lock, BoundedSemaphore
-from link import Link
-from site_crawler import SiteCrawler
+from threading import Thread, Lock, Semaphore
+from .link import Link
+from .site_crawler import SiteCrawler
 import logging
 import copy
 import heapq
+import time
+from queue import Queue
 #import psutil
 #psutil.cpu_percent()
 # SET THE SEED FOR REPRODUCIBILITY TESTS
@@ -35,17 +36,42 @@ class MultiSiteCrawler(object):
             self.curr_crawlers += 1
         self.new_seed_urls = {}
         self.seen_domains = set()
+        self.wait_for_pending_before_dying = Lock()
+        self.number_of_running = 0
         self.pending_to_crawl_concurrency_lock = Lock()
         self.new_seed_urls_concurrency_lock = Lock()
         # List of all the threads created
         self.threads = []
         # Maximum number of threads that will be run at the same time
         self.max_jobs = config["max_jobs"]
-        #self.new_worker_semaphore = BoundedSemaphore(value=self.max_jobs)
+
+        self.new_worker_queue = Queue()
         # If this flag is set to True, next job will clean the list of crawlers before starting a new crawl
         self.remove_stopped_crawlers_from_list = False
         Link.prefix_filter = config["prefix_filter"]
         self.interrupt = False
+
+    def new_running_crawler(self):
+        self.wait_for_pending_before_dying.acquire()
+        self.number_of_running += 1
+        self.wait_for_pending_before_dying.release()
+
+    def new_done_crawler(self):
+        self.wait_for_pending_before_dying.acquire()
+        self.number_of_running -= 1
+        self.wait_for_pending_before_dying.release()
+
+    def get_running_crawlers(self):
+        self.wait_for_pending_before_dying.acquire()
+        output = self.number_of_running
+        self.wait_for_pending_before_dying.release()
+        return output
+
+    def get_pending_crawlers(self):
+        self.wait_for_pending_before_dying.acquire()
+        output = len(self.pending_crawlers)
+        self.wait_for_pending_before_dying.release()
+        return output
 
     def start_crawling(self):
         # If the interrupt flat is not enabled and, either there are crawlers available or there are threads running
@@ -54,19 +80,22 @@ class MultiSiteCrawler(object):
             t = Thread(target=self._pick_crawler_and_run_one_doc)
             self.threads.append(t)
             t.daemon = False
+            self.new_worker_queue.put(t)
+
+        while not self.interrupt and (self.get_pending_crawlers() > 0 or self.get_running_crawlers() > 0):
+            t = self.new_worker_queue.get()
             t.start()
 
     def _pick_crawler_and_run_one_doc(self):
-        while not self.interrupt and (len(self.pending_crawlers) > 0 or threading.active_count() > 1):
-            #try:
-            #self.new_worker_semaphore.acquire()
             crawler = self.pop_crawler_from_heap()
-            if crawler is not None:
+            if crawler is not None and not crawler.interrupt:
                 crawler.crawl_one_page()
             else:
                 self._expand_crawlers_list()
-        #finally:
-        #    self.new_worker_semaphore.release()
+            t = Thread(target=self._pick_crawler_and_run_one_doc)
+            self.threads.append(t)
+            t.daemon = False
+            self.new_worker_queue.put(t)
 
     def pop_crawler_from_heap(self):
         try:

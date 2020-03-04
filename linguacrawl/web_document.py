@@ -1,6 +1,6 @@
 import re
 import cchardet
-from link import Link
+from .link import Link
 import alcazar.bodytext
 import cld3
 

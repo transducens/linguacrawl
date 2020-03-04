@@ -5,7 +5,7 @@ import logging
 import argparse
 import signal
 
-import linguacrawl.parse_config
+from linguacrawl import parse_config
 from linguacrawl.multi_site_crawler import MultiSiteCrawler
 from linguacrawl.bitext_scout import BitextScout
 

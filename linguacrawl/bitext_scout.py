@@ -1,4 +1,4 @@
-from generic_scout import GenericScout
+from .generic_scout import GenericScout
 
 
 class BitextScout(GenericScout):
