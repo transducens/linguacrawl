@@ -85,18 +85,12 @@ class MultiSiteCrawler(object):
         while not self.interrupt and (self.get_pending_crawlers() > 0 or self.get_running_crawlers() > 0):
             t = self.new_worker_queue.get()
             t.start()
-            import sys
-            sys.stderr.write(str(threading.enumerate())+"\n")
 
     def _pick_crawler_and_run_one_doc(self):
             crawler = self.pop_crawler_from_heap()
             if crawler is not None and not crawler.interrupt:
-                import sys
-                sys.stderr.write("Thread "+str(threading.current_thread())+" is crawling a site\n")
                 crawler.crawl_one_page()
             else:
-                import sys
-                sys.stderr.write("Thread "+str(threading.current_thread())+" is expaning crawlers list\n")
                 self._expand_crawlers_list()
             t = Thread(target=self._pick_crawler_and_run_one_doc)
             self.threads.append(t)
@@ -122,7 +116,6 @@ class MultiSiteCrawler(object):
 
     # Method used by the site-crawlers to add new URLs to the new_seed_urls list
     def extend_seed_urls(self, url):
-        import sys
         try:
             self.new_seed_urls_concurrency_lock.acquire()
             if url.get_domain() not in self.seen_domains:

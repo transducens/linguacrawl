@@ -343,9 +343,6 @@ class SiteCrawler(object):
             self.multi_site_crawler.new_done_crawler()
 
     def _wait_and_queue(self):
-        import sys
-        sys.stderr.write("Thread "+str(threading.current_thread())+" is sleeping\n")
-
         sleeptime = self.robots.get_delay() - (time.time() - self.last_connection)
         if sleeptime > 0:
             time.sleep(sleeptime)
