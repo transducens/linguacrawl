@@ -300,8 +300,6 @@ class SiteCrawler(object):
                             self.run_scout(doc)
                             # The document is writen to the warc
                             self.write_document(doc)
-                else:
-
             else:
                 if connection is not None:
                     connection.close()
@@ -398,9 +396,13 @@ class SiteCrawler(object):
         try:
             self.file_write_concurrency_lock.acquire()
             self.visited = status_obj['visited']
+            logging.error("Visited URLs updated from status: " +
+                          str(len(self.visited)) + " URLs loaded \n")
             self.pending_urls = []
             for u in status_obj['pendingurls']:
                 self.pending_urls.append(Link(u))
+            logging.error("Updating list of URLs to be visited: " +
+                          str(len(self.pending_urls)) + " URLs loaded\n")
             self.attempts = status_obj['attempts']
         finally:
             self.file_write_concurrency_lock.release()
