@@ -153,7 +153,6 @@ class SiteCrawler(object):
         return url
 
     def _process_link(self, link, url):
-        logging.debug("\t\t" + threading.current_thread().name + "--- going to process "+link.get_norm_url())
         # Longer than limit set by the standard RFC7230 are discarded
         if not link.is_valid():
             return None
@@ -163,8 +162,6 @@ class SiteCrawler(object):
                 return None
 
         if self.domain == link.get_domain():
-            logging.debug(
-                "\t\t" + threading.current_thread().name + "--- adding URL to list " + link.get_norm_url())
             self.url_list_concurrency_lock.acquire()
             self.add_url_to_list(link)
             self.url_list_concurrency_lock.release()
@@ -270,24 +267,18 @@ class SiteCrawler(object):
             if not self.robots.fetch(url, self.max_attempts, self.domain):
                 logging.info("robots.txt forbids crawling URL: %s", url.get_norm_url())
                 return
-            logging.debug("\t"+threading.current_thread().name+" >>>> Connecting "+url.get_norm_url()+"...")
             connection, server_response = self.connect_to_server(url)
-            logging.debug("\t"+threading.current_thread().name+"<<<< Connected " + url.get_norm_url())
 
             # If response is 2XX, the web page is processed
             if server_response is not None and self.deal_with_response_status(url, server_response):
                 # Check content type
                 content_type = server_response.getheader('Content-Type')
-                logging.debug("\t"+threading.current_thread().name+"<<<< Content type: " + str(content_type))
                 doc = None
                 if content_type is not None and not re.search(self.accepted_content_type, content_type):
                     logging.info("%s discarded: wrong file type", url.get_norm_url())
                 else:
-                    logging.debug("\t"+threading.current_thread().name+">>>> Extracting doc from " + url.get_norm_url())
                     doc = WebDocument(server_response, url, self.max_attempts)
-                    logging.debug("\t"+threading.current_thread().name+"<<<< Document extracted " + url.get_norm_url())
                 connection.close()
-                logging.debug("\t"+threading.current_thread().name+"<<<< Connection closed: " + url.get_norm_url())
 
                 if doc is not None:
                     if doc.utf_text:
@@ -297,11 +288,8 @@ class SiteCrawler(object):
                         listoflinks = []
                         for li in links_set:
                             listoflinks.append(li.get_norm_url())
-                        logging.debug("\t"+threading.current_thread().name+"<<<< Processing "+str(len(links_set))+
-                                      " links... " + url.get_norm_url() + "... "+" ".join(listoflinks))
                         for link in links_set:
                             self._process_link(link, doc.url)
-                        logging.debug("\t"+threading.current_thread().name+"<<<< Links processed " + url.get_norm_url())
 
                         if doc.get_lang() is None or not doc.get_lang().is_reliable:
                             logging.info("%s discarded: language detection is not reliable", url.get_norm_url())
@@ -309,19 +297,12 @@ class SiteCrawler(object):
                             logging.info("%s discarded: language not among languages of interest (detected=%s)",
                                          url.get_norm_url(), doc.get_lang().language)
                         else:
-                            logging.debug("\t"+threading.current_thread().name+">>>> Running scout " + url.get_norm_url())
                             self.run_scout(doc)
-                            logging.debug("\t"+threading.current_thread().name+"<<<< Scout run " + url.get_norm_url())
                             # The document is writen to the warc
-                            logging.debug("\t"+threading.current_thread().name+">>>> Write document " + url.get_norm_url())
                             self.write_document(doc)
-                            logging.debug("\t"+threading.current_thread().name+"<<<< Document saved " + url.get_norm_url())
                 else:
-                    logging.debug("\t"+threading.current_thread().name+"<<<< Document was none: " + url.get_norm_url())
 
             else:
-                logging.debug("\t" + threading.current_thread().name + "<<<< Connection was none")
-
                 if connection is not None:
                     connection.close()
 
@@ -358,7 +339,7 @@ class SiteCrawler(object):
                                  doc.url.get_norm_url())
                     self.interrupt = True
                 else:
-                    logging.info("Scout recommends keep crawling website after downloading %s; langs of interest found: %s",
+                    logging.info("Scout recommends keeping crawling website after downloading %s; langs of interest found: %s",
                                  doc.url.get_norm_url(), str(self.scout.lang_evidence))
                 self.scout = None
 
