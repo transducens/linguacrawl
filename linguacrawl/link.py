@@ -2,7 +2,6 @@ from posixpath import normpath
 import re
 import tldextract
 from urllib.parse import urlparse
-import logging
 
 
 class Link(object):

@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 
 from cerberus import Validator
-import argparse
-import signal
 import sys
 import yaml
 import os

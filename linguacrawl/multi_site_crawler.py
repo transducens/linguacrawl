@@ -5,13 +5,7 @@ from .site_crawler import SiteCrawler
 import logging
 import copy
 import heapq
-import time
 from queue import Queue
-#import psutil
-#psutil.cpu_percent()
-# SET THE SEED FOR REPRODUCIBILITY TESTS
-# SEED=4
-# random.seed(SEED)
 
 
 class MultiSiteCrawler(object):
