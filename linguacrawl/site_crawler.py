@@ -64,9 +64,6 @@ class SiteCrawler(object):
 
         # Path to the file that stores crawling state dump
         self.dumpfile = config["output_dir"] + "/" + self.domain + ".state"
-        # If a path is provided, the previous crawling status is restored to resume crawling
-        if config["resume_crawling"]:
-            self.load_status(pickle.load(open(self.dumpfile, 'rb')))
         # Path to the file where WARC is writen
         output_file_name = config["output_dir"] + "/" + self.domain + ".warc.gz"
         metadata_output_file_name = config["output_dir"] + "/" + self.domain + ".metadata.gz"
@@ -100,6 +97,12 @@ class SiteCrawler(object):
             if url.is_valid():
                 self.add_url_to_list(url)
         self.url_list_concurrency_lock.release()
+
+        # If a path is provided, the previous crawling status is restored to resume crawling
+        if config["resume_crawling"]:
+            if os.path.isfile(self.dumpfile):
+                self.load_status(pickle.load(open(self.dumpfile, 'rb')))
+
 
         # Maximum crawling size for this site
         if "max_size_per_site" not in config:
@@ -396,16 +399,15 @@ class SiteCrawler(object):
         try:
             self.file_write_concurrency_lock.acquire()
             self.visited = status_obj['visited']
-            logging.error("Visited URLs updated from status: " +
-                          str(len(self.visited)) + " URLs loaded \n")
             self.pending_urls = []
             for u in status_obj['pendingurls']:
                 self.pending_urls.append(Link(u))
-            logging.error("Updating list of URLs to be visited: " +
-                          str(len(self.pending_urls)) + " URLs loaded\n")
             self.attempts = status_obj['attempts']
+
         finally:
             self.file_write_concurrency_lock.release()
+        sys.stderr.write("Load done!\n")
+
 
     def save_status(self):
         if self.dumpfile is not None:
