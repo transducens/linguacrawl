@@ -1,0 +1,19 @@
+user_agent: 'Mozilla/5.0 (compatible; myproject/0.1 +PROJECT_URL_HERE'
+langs_of_interest: ['es','ca','en']
+crawl_delay: 5
+max_time_per_site: 3600
+connection_timeout: 10
+max_jobs: 12
+accepted_tlds: ['es','cat']
+seed_urls: ['http://www.ffff.es','http://www.dddd.cat']
+prefix_filter: ['mailto:']
+output_dir: '/home/user/crawl_output'
+verbose: True
+accepted_content: '(text/html)'
+max_folder_tree_depth: 20
+max_attempts: 3
+scout_steps: 200
+min_langs_in_site: 2
+mandatory_lang: 'ca'
+min_percent_mandatory_lang: 10
+url_blacklist: ['wordpress','blogspot','facebook','google','wikipedia','youtube','perehodi','twitter','instagram']
