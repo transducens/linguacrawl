@@ -44,14 +44,19 @@ options that can be included in the configuration file.
 These are general options that are related the basic aspects of configuration of the tool and the crawling task to be
 carried out.
 
-#### seed_urls
-`seed_urls` contains a list of seed URLs from which to start crawling. The larger this list, the faster the process of
+#### seed_urls and seed_urls_from_file
+`seed_urls` is a list of seed URLs from which to start crawling. The larger this list, the faster the process of
 crawling new data. During crawling, linguacrawl discovers new websites to be visited by looking for new URLs in the
 documents available from the seed ULRs. If only one seed URL is set, this process of discovering new sites o visit will
 be slower (or even could not be possible, if the seed website do not contain links to other sites in the accepted TLDs).
 Therefore, it is advisable to add as many different URLs to the list as possible. An example:
 ```yaml
 seed_urls: ['https://www.ffff.es/', 'https://www.dddd.cat/']
+```
+If this list is too large, the alternative `seed_urls_from_file` option is provided. This option allows to define the
+path to a text file that contains the list of seed URLs (one URL per line):
+```yaml
+seed_urls_from_file: '/home/user/my_seed_urls.txt'
 ```
 
 #### langs_of_interest
