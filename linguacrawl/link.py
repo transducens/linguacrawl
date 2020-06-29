@@ -76,8 +76,10 @@ class Link(object):
         # Longer than limit set by the standard RFC7230 are discarded
         elif len(self.original_link) > 2000:
             return False
-        elif self.prefix_filter != '' and re.search(self.prefix_filter, self.original_link):
-            return False
+        elif len(self.prefix_filter) > 0:
+            for pref in self.prefix_filter:
+                if re.search(pref, self.original_link):
+                    return False
         else:
             return True
 

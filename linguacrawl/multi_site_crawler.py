@@ -15,11 +15,19 @@ class MultiSiteCrawler(object):
 
         self.config = config
         urls_per_domain = {}
-        for seed_url in config["seed_urls"]:
-            url = Link(seed_url)
-            if url.get_domain() not in urls_per_domain:
-                urls_per_domain[url.get_domain()] = []
-            urls_per_domain[url.get_domain()].append(url)
+        if "seed_urls_from_file" in config:
+            with open(config["seed_urls_from_file"],"r") as fseeds:
+                for seed_url in fseeds:
+                    url = Link(seed_url)
+                    if url.get_domain() not in urls_per_domain:
+                        urls_per_domain[url.get_domain()] = []
+                    urls_per_domain[url.get_domain()].append(url)
+        else:
+            for seed_url in config["seed_urls"]:
+                url = Link(seed_url)
+                if url.get_domain() not in urls_per_domain:
+                    urls_per_domain[url.get_domain()] = []
+                urls_per_domain[url.get_domain()].append(url)
 
         self.curr_crawlers = 0
         self.scout = scout

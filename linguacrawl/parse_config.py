@@ -18,7 +18,7 @@ def validate_config(config):
         'accepted_tlds': {'required': False, 'type': 'list'},
         'seed_urls': {'required': False, 'type': 'list'},
         'seed_urls_from_file': {'required': False, 'type': 'string'},
-        'prefix_filter': {'required': False, 'type': 'string', 'default': ''},
+        'prefix_filter': {'required': False, 'type': 'list', 'default': []},
         'output_dir': {'required': True, 'type': 'string'},
         'verbose': {'required': False, 'type': 'boolean', 'default': False},
         'accepted_content': {'required': False, 'type': 'string', 'default': '(text/html)'},

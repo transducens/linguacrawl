@@ -66,13 +66,13 @@ class SiteCrawler(object):
         # Path to the file that stores crawling state dump
         self.dumpfile = config["output_dir"] + "/" + self.domain + ".state"
         # Path to the file where WARC is writen
-        self.output_file_name = config["output_dir"] + "/" + self.domain + ".warc.gz"
-        self.metadata_output_file_name = config["output_dir"] + "/" + self.domain + ".metadata.gz"
+        output_file_name = config["output_dir"] + "/" + self.domain + ".warc.gz"
+        metadata_output_file_name = config["output_dir"] + "/" + self.domain + ".bitextor.gz"
         name_counter = 1
-        while os.path.isfile(self.output_file_name):
-            self.output_file_name = config["output_dir"] + "/" + self.domain + "." + str(name_counter) + ".warc.gz"
-            self.metadata_output_file_name = config["output_dir"] + "/" + self.domain + "." + str(
-                name_counter) + ".metadata.gz"
+        while os.path.isfile(output_file_name):
+            output_file_name = config["output_dir"] + "/" + self.domain + "." + str(name_counter) + ".warc.gz"
+            metadata_output_file_name = config["output_dir"] + "/" + self.domain + "." + str(
+                name_counter) + ".bitextor.gz"
             name_counter += 1
         #f_out = open(self.output_file_name, 'wb')
         #self.writer = WARCWriter(f_out, gzip=True)
