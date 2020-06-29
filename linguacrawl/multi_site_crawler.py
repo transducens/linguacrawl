@@ -1,3 +1,5 @@
+import time
+import sys
 import threading
 from threading import Thread, Lock, Semaphore
 from .link import Link
@@ -73,23 +75,32 @@ class MultiSiteCrawler(object):
         for i in range(0, self.max_jobs):
             t = Thread(target=self._pick_crawler_and_run_one_doc)
             self.threads.append(t)
-            t.daemon = False
+            t.daemon = True
             self.new_worker_queue.put(t)
-
-        while not self.interrupt and (self.get_pending_crawlers() > 0 or self.get_running_crawlers() > 0):
-            t = self.new_worker_queue.get()
             t.start()
+        while not self.interrupt and (self.get_pending_crawlers() > 0 or self.get_running_crawlers() > 0):
+            time.sleep(5)
+
+        #while not self.interrupt and (self.get_pending_crawlers() > 0 or self.get_running_crawlers() > 0):
+        #    sys.stderr.write("Pending crawlers: "+str(self.get_pending_crawlers())+" Running crawlers: "+str(self.get_running_crawlers())+" At: "+str(time.time())+"\n")
+
+        #    t = self.new_worker_queue.get()
+        #    sys.stderr.write("Pending crawlers: "+str(self.get_pending_crawlers())+" Running crawlers: "+str(self.get_running_crawlers())+" on thread "+t.name+" At: "+str(time.time())+"\n")
+
+        #    t.start()
 
     def _pick_crawler_and_run_one_doc(self):
+        while not self.interrupt and (self.get_pending_crawlers() > 0 or self.get_running_crawlers() > 0):
+            #sys.stderr.write("Thread "+threading.current_thread().name+" at "+str(time.time())+" when "+str(len(self.pending_crawlers))+" crawlers are available\n")
             crawler = self.pop_crawler_from_heap()
             if crawler is not None and not crawler.interrupt:
                 crawler.crawl_one_page()
             else:
                 self._expand_crawlers_list()
-            t = Thread(target=self._pick_crawler_and_run_one_doc)
-            self.threads.append(t)
-            t.daemon = False
-            self.new_worker_queue.put(t)
+            #t = Thread(target=self._pick_crawler_and_run_one_doc)
+            #self.threads.append(t)
+            #t.daemon = False
+            #self.new_worker_queue.put(t)
 
     def pop_crawler_from_heap(self):
         try:

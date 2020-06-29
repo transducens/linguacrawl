@@ -1,3 +1,4 @@
+import time
 from urllib.parse import quote
 import http.client
 import io
@@ -65,17 +66,17 @@ class SiteCrawler(object):
         # Path to the file that stores crawling state dump
         self.dumpfile = config["output_dir"] + "/" + self.domain + ".state"
         # Path to the file where WARC is writen
-        output_file_name = config["output_dir"] + "/" + self.domain + ".warc.gz"
-        metadata_output_file_name = config["output_dir"] + "/" + self.domain + ".metadata.gz"
+        self.output_file_name = config["output_dir"] + "/" + self.domain + ".warc.gz"
+        self.metadata_output_file_name = config["output_dir"] + "/" + self.domain + ".metadata.gz"
         name_counter = 1
-        while os.path.isfile(output_file_name):
-            output_file_name = config["output_dir"] + "/" + self.domain + "." + str(name_counter) + ".warc.gz"
-            metadata_output_file_name = config["output_dir"] + "/" + self.domain + "." + str(
+        while os.path.isfile(self.output_file_name):
+            self.output_file_name = config["output_dir"] + "/" + self.domain + "." + str(name_counter) + ".warc.gz"
+            self.metadata_output_file_name = config["output_dir"] + "/" + self.domain + "." + str(
                 name_counter) + ".metadata.gz"
             name_counter += 1
-        f_out = open(output_file_name, 'wb')
-        self.writer = WARCWriter(f_out, gzip=True)
-        self.metadata_writer = gzip.open(metadata_output_file_name, "wb")
+        #f_out = open(self.output_file_name, 'wb')
+        #self.writer = WARCWriter(f_out, gzip=True)
+        #self.metadata_writer = gzip.open(metadata_output_file_name, "wb")
 
         # Scout object that will determine if the website is promising and if crawling should be interrupted
         self.scout = scout
@@ -266,6 +267,12 @@ class SiteCrawler(object):
     def crawl_one_page(self):
         self.multi_site_crawler.new_running_crawler()
         url = self.get_pending_url()
+        import sys
+        #if url:
+        #    sys.stderr.write("Craling: "+url.original_link+"\n")
+        #else:
+        #    sys.stderr.write("URL is none\n")
+
         if not self.interrupt and url is not None:
             if not self.robots.fetch(url, self.max_attempts, self.domain):
                 logging.info("robots.txt forbids crawling URL: %s", url.get_norm_url())
@@ -302,6 +309,7 @@ class SiteCrawler(object):
                         else:
                             self.run_scout(doc)
                             # The document is writen to the warc
+                            #sys.stderr.write("Document "+url.original_link+" was writen into WARC file at "+str(time.time())+"\n")
                             self.write_document(doc)
             else:
                 if connection is not None:
@@ -315,8 +323,9 @@ class SiteCrawler(object):
                 self.interrupt = True
         # If the crawler is allowed to continue crawling, wait until delay has passed and continue
         if not self.interrupt:
+            #sys.stderr.write("Document "+url.original_link+" going to sleep\n")
             self.sleep_thread = Thread(target=self._wait_and_queue)
-            self.sleep_thread.daemon = False
+            self.sleep_thread.daemon = True
             self.sleep_thread.name = self.sleep_thread.name + "_sleep"
             self.sleep_thread.start()
         else:
@@ -375,18 +384,25 @@ class SiteCrawler(object):
 
     def write_document(self, doc):
         self.file_write_concurrency_lock.acquire()
+
+        f_out = open(self.output_file_name, 'ab')
+        writer = WARCWriter(f_out, gzip=True)
+        metadata_writer = gzip.open(self.metadata_output_file_name, "ab")
+                                
         try:
             headers_list = doc.response.getheaders()
             http_headers = StatusAndHeaders('200 OK', headers_list, protocol='HTTP/1.0')
             norm_url = doc.url.get_norm_url()
-            record = self.writer.create_warc_record(norm_url, 'response', payload=io.BytesIO(doc.text),
+            record = writer.create_warc_record(norm_url, 'response', payload=io.BytesIO(doc.text),
                                                     http_headers=http_headers)
-            self.writer.write_record(record)
+            writer.write_record(record)
             self.crawl_size += sys.getsizeof(doc.text) / 1000000.0
-            if not self.metadata_writer.closed and self.metadata_writer is not None:
-                self.metadata_writer.write(("%s\t%s\t%s\n" % (doc.url.get_norm_url(), str(doc.encoding), str(doc.get_lang()))).encode())
-                self.metadata_writer.flush()
+            #if not metadata_writer.closed and self.metadata_writer is not None:
+            metadata_writer.write(("%s\t%s\t%s\n" % (doc.url.get_norm_url(), str(doc.encoding), str(doc.get_lang()))).encode())
+            #self.metadata_writer.flush()
         finally:
+            f_out.close()
+            metadata_writer.close()
             self.file_write_concurrency_lock.release()
 
     def get_status_object(self):
@@ -406,7 +422,6 @@ class SiteCrawler(object):
 
         finally:
             self.file_write_concurrency_lock.release()
-        sys.stderr.write("Load done!\n")
 
 
     def save_status(self):
@@ -418,7 +433,7 @@ class SiteCrawler(object):
         try:
             self.file_write_concurrency_lock.acquire()
             self.save_status()
-            self.metadata_writer.close()
+            #self.metadata_writer.close()
         finally:
             self.file_write_concurrency_lock.release()
 
