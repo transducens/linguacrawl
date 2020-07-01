@@ -3,10 +3,12 @@ import cchardet
 from .link import Link
 import alcazar.bodytext
 import cld3
+import pycountry
+import logging
 
 
 class WebDocument(object):
-    def __init__(self, res, url, max_attempts=1):
+    def __init__(self, res, url, max_attempts=1, custom_fasttext_langid_model=None):
         self.response = res
         self.url = url
         self.status = res.status
@@ -16,6 +18,11 @@ class WebDocument(object):
         self.headers = dict(res.getheaders())
         self.links = None
         self._lang = None
+        if custom_fasttext_langid_model is not None:
+            self.fasttextmodel = custom_fasttext_langid_model
+        else:
+            self.fasttextmodel = None
+
 
     def _read_from_response(self, max_attempts):
         attempts = 0
@@ -58,7 +65,20 @@ class WebDocument(object):
             try:
                 article = alcazar.bodytext.parse_article(utf_text_to_deboilerpipe)
                 if article.body_text:
-                    self._lang = cld3.get_language(article.body_text)
-            except:
+                    if self.fasttextmodel is not None:
+                        label=self.fasttextmodel.predict(article.body_text.replace("\n"," "))
+                        if "__label__" in label[0][0]:
+                            self._lang = label[0][0].strip().split("_")[-1]
+                            if len(self._lang) == 3:
+                                langinfo = pycountry.languages.get(alpha_3=self._lang)
+                                self._lang = langinfo.alpha_2
+                    else:
+                        self._lang = cld3.get_language(article.body_text)
+                        if not self._lang.is_reliable:
+                            self._lang = None
+                        else:
+                            self._lang = self._lang.language
+            except Exception as e:
+                logging.error(str(e))
                 self._lang = None
         return self._lang

@@ -24,7 +24,7 @@ import threading
 
 
 class SiteCrawler(object):
-    def __init__(self, priority, multi_site_crawler, seed_urls, domain, config, scout=None):
+    def __init__(self, priority, multi_site_crawler, seed_urls, domain, config, scout=None, fasttextmodel=None):
         # Multi-site crawler object that manages current crawler
         self.multi_site_crawler = multi_site_crawler
 
@@ -66,12 +66,12 @@ class SiteCrawler(object):
         # Path to the file that stores crawling state dump
         self.dumpfile = config["output_dir"] + "/" + self.domain + ".state"
         # Path to the file where WARC is writen
-        output_file_name = config["output_dir"] + "/" + self.domain + ".warc.gz"
-        metadata_output_file_name = config["output_dir"] + "/" + self.domain + ".bitextor.gz"
+        self.output_file_name = config["output_dir"] + "/" + self.domain + ".warc.gz"
+        self.metadata_output_file_name = config["output_dir"] + "/" + self.domain + ".bitextor.gz"
         name_counter = 1
-        while os.path.isfile(output_file_name):
-            output_file_name = config["output_dir"] + "/" + self.domain + "." + str(name_counter) + ".warc.gz"
-            metadata_output_file_name = config["output_dir"] + "/" + self.domain + "." + str(
+        while os.path.isfile(self.output_file_name):
+            self.output_file_name = config["output_dir"] + "/" + self.domain + "." + str(name_counter) + ".warc.gz"
+            self.metadata_output_file_name = config["output_dir"] + "/" + self.domain + "." + str(
                 name_counter) + ".bitextor.gz"
             name_counter += 1
         #f_out = open(self.output_file_name, 'wb')
@@ -82,6 +82,7 @@ class SiteCrawler(object):
         self.scout = scout
         # The user will only keep documents in these languages
         self.langs_of_interest = config["langs_of_interest"]
+        self.fasttextmodel=fasttextmodel
 
         # User agent of the crawl
         self.user_agent = config["user_agent"]
@@ -287,7 +288,7 @@ class SiteCrawler(object):
                 if content_type is not None and not re.search(self.accepted_content_type, content_type):
                     logging.info("%s discarded: wrong file type", url.get_norm_url())
                 else:
-                    doc = WebDocument(server_response, url, self.max_attempts)
+                    doc = WebDocument(server_response, url, self.max_attempts, self.fasttextmodel)
                 connection.close()
 
                 if doc is not None:
@@ -301,11 +302,11 @@ class SiteCrawler(object):
                         for link in links_set:
                             self._process_link(link, doc.url)
 
-                        if doc.get_lang() is None or not doc.get_lang().is_reliable:
+                        if doc.get_lang() is None:
                             logging.info("%s discarded: language detection is not reliable", url.get_norm_url())
-                        elif doc.get_lang().language not in self.langs_of_interest:
+                        elif doc.get_lang() not in self.langs_of_interest:
                             logging.info("%s discarded: language not among languages of interest (detected=%s)",
-                                         url.get_norm_url(), doc.get_lang().language)
+                                         url.get_norm_url(), doc.get_lang())
                         else:
                             self.run_scout(doc)
                             # The document is writen to the warc

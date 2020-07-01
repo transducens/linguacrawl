@@ -14,11 +14,11 @@ class BitextScout(GenericScout):
     def step(self, doc):
         super().step(doc)
         lang = doc.get_lang()
-        if lang is not None and lang.is_reliable and lang.language in self.langs_of_interest:
-            if lang.language in self.lang_evidence:
-                self.lang_evidence[lang.language] += 1
+        if lang is not None and lang in self.langs_of_interest:
+            if lang in self.lang_evidence:
+                self.lang_evidence[lang] += 1
             else:
-                self.lang_evidence[lang.language] = 1
+                self.lang_evidence[lang] = 1
 
     def recommendation_keep_crawling(self):
         if self.mandatory_lang in self.lang_evidence:

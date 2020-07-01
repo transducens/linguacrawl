@@ -29,12 +29,19 @@ class MultiSiteCrawler(object):
                     urls_per_domain[url.get_domain()] = []
                 urls_per_domain[url.get_domain()].append(url)
 
+        if "custom_fasttext_langid" in config:
+            import fasttext
+            self.fasttextmodel = fasttext.load_model(config["custom_fasttext_langid"])
+        else:
+            self.fasttextmodel = None
+
+
         self.curr_crawlers = 0
         self.scout = scout
         self.domain_crawlers = {}
         self.pending_crawlers = []
         for domain, urls in urls_per_domain.items():
-            crawler = SiteCrawler(self.curr_crawlers, self, urls, domain, config, copy.deepcopy(self.scout))
+            crawler = SiteCrawler(self.curr_crawlers, self, urls, domain, config, copy.deepcopy(self.scout), self.fasttextmodel)
             heapq.heappush(self.pending_crawlers, (self.curr_crawlers, crawler))
             self.domain_crawlers[domain] = crawler
             self.curr_crawlers += 1
@@ -152,7 +159,7 @@ class MultiSiteCrawler(object):
                     else:
                         c.extend_url_list(url_list)
                 elif d not in self.seen_domains:
-                    crawler = SiteCrawler(self.curr_crawlers, self, url_list, d, self.config, copy.deepcopy(self.scout))
+                    crawler = SiteCrawler(self.curr_crawlers, self, url_list, d, self.config, copy.deepcopy(self.scout), self.fasttextmodel)
                     self.push_crawler_to_heap(crawler)
                     self.domain_crawlers[d] = crawler
                     self.curr_crawlers += 1
