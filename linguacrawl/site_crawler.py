@@ -318,7 +318,7 @@ class SiteCrawler(object):
 
             if self.max_size is not None and self.crawl_size > self.max_size:
                 self.interrupt_crawl()
-            elif self.max_time is not None and time.time() - self.crawlstarts > self.max_time:
+            elif self.max_time is not None and time.time() - self.starts > self.max_time:
                 self.interrupt_crawl()
             elif len(self.pending_urls) == 0:
                 self.interrupt = True
