@@ -67,6 +67,7 @@ class WebDocument(object):
                 if article.body_text:
                     if self.fasttextmodel is not None:
                         label=self.fasttextmodel.predict(article.body_text.replace("\n"," "))
+                        logging.info("Fasttext identified %s category for page %s", str(label), self.url)
                         if "__label__" in label[0][0]:
                             self._lang = label[0][0].strip().split("_")[-1]
                             if len(self._lang) == 3:
@@ -81,4 +82,5 @@ class WebDocument(object):
             except Exception as e:
                 logging.error(str(e))
                 self._lang = None
+        logging.info("%s language identified in page %s",self._lang,self.url)
         return self._lang

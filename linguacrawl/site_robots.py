@@ -23,7 +23,7 @@ class SiteRobots:
             retry = True
             rp = None
             while retry and attempts <= max_attempts:
-                logging.info("Trying (%s) to read robots.txt for subdomain %s", str(attempts), url.get_sub_domain())
+                logging.info("Thread %s: Trying (%s) to read robots.txt for subdomain %s", threading.current_thread().name, str(attempts), url.get_sub_domain())
                 retry = False
                 subdomain_robots_url = url.get_scheme()+"://"+url.get_sub_domain()+"/robots.txt"
                 rp = urllib.robotparser.RobotFileParser()
@@ -35,12 +35,14 @@ class SiteRobots:
                         rp.parse(raw.decode("utf-8").splitlines())
                     logging.info("Robots.txt read successfuly for subdomain %s", url.get_sub_domain())
                 except urllib.error.HTTPError as err:
-                    logging.error("HTTPError (code %s) while trying to read robots.txt for subdomain %s", str(err.code), url.get_sub_domain())
+                    logging.error("HTTPError (code %s)", str(err.code))
                     if err.code in (400, 404, 406, 410):
+                        logging.error("HTTPError (code %s) while trying to read robots.txt for subdomain %s: allowing to crawl any page", str(err.code), url.get_sub_domain())
                         rp.allow_all = True
                     elif err.code == 408 or err.code == 504:
                         rp = None
                     else:
+                        logging.error("HTTPError (code %s) while trying to read robots.txt for subdomain %s: disallowing to crawl any page", str(err.code), url.get_sub_domain())
                         rp.disallow_all = True
                 except UnicodeError:
                     rp.disallow_all = True
@@ -61,8 +63,14 @@ class SiteRobots:
                 finally:
                     self.connection_lock.release()
             if rp is None:
+                logging.error("WARNING: no robots could be read from %s: allowing to crawl anything",
+                              url.get_norm_url())
                 rp = urllib.robotparser.RobotFileParser()
                 rp.disallow_all = True
+            else:
+                logging.error("WARNING: robots correctly read for %s",
+                              url.get_norm_url())
+
             self._site_robots[url.get_sub_domain()] = rp
             subdomain_delay = self._get_delay_for_url(url)
             # We keep the most restrictive delay value among all the robots.txt in the domain
