@@ -1,3 +1,4 @@
+import logging
 from posixpath import normpath
 import re
 import tldextract
@@ -6,7 +7,7 @@ from urllib.parse import urlparse
 
 class Link(object):
     # Static variable: prefix_filter
-    prefix_filter = ""
+    prefix_filter = []
 
     def __init__(self, link, in_url=None):
         if link is not None:
@@ -72,15 +73,21 @@ class Link(object):
 
     def is_valid(self):
         if len(self.get_norm_url()) == 0:
+            logging.info("%s gets length 0 when normalized", self.original_link)
             return False
         # Longer than limit set by the standard RFC7230 are discarded
         elif len(self.original_link) > 2000:
+            logging.info("%s gets longer than 2000", self.original_link)
             return False
         elif len(self.prefix_filter) > 0:
             for pref in self.prefix_filter:
                 if re.search(pref, self.original_link):
+                    logging.info("%s contains the prefix %s", self.original_link, str(pref))
                     return False
+            #logging.info("%s is a valid link",self.original_link)
+            return True
         else:
+            #logging.info("%s is a valid link",self.original_link)
             return True
 
     def get_depth(self):
