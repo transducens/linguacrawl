@@ -26,9 +26,10 @@ def validate_config(config):
         'max_attempts': {'required': False, 'type': 'integer', 'default': 3},
         'scout_steps': {'required': False, 'type': 'integer', 'default': 200},
         'min_langs_in_site': {'required': False, 'type': 'integer', 'default': 2},
-        'mandatory_lang': {'required': False, 'type': 'string', 'default': None},
+        'mandatory_lang': {'required': False, 'type': 'string', 'default': None, 'nullable': True},
         'min_percent_mandatory_lang': {'required': False, 'type': 'integer', 'default': 10},
-        'url_blacklist': {'required': False, 'type': 'list', 'default': []}
+        'url_blacklist': {'required': False, 'type': 'list', 'default': []},
+        'custom_fasttext_langid': {'required': False, 'type': 'string', 'default': None, 'nullable': True}
     }
 
     v = Validator(schema)
