@@ -84,10 +84,8 @@ class Link(object):
                 if re.search(pref, self.original_link):
                     logging.info("%s contains the prefix %s", self.original_link, str(pref))
                     return False
-            #logging.info("%s is a valid link",self.original_link)
             return True
         else:
-            #logging.info("%s is a valid link",self.original_link)
             return True
 
     def get_depth(self):

@@ -119,15 +119,13 @@ class SiteCrawler(object):
         else:
             self.max_time = config["max_time_per_site"]
         # Starting time of the crawling; it is used to decide when max_time is reached
-        self.starts = int(time.time())
+        self.crawlstarts = int(time.time())
         # Time of the last connection; it is used to make sure that delay is fulfilled
-        self.last_connection = self.starts - self.default_delay
+        self.last_connection = self.crawlstarts - self.default_delay
 
     def extend_url_list(self, url_list):
-        #self.url_list_concurrency_lock.acquire()
         for u in url_list:
             self.add_url_to_list(u)
-        #self.url_list_concurrency_lock.release()
 
     # Adding URL to the list of URLs to be visited during crawling; before doing so, checks if it was already visited or
     # if it infringes TLD restrictions
@@ -135,15 +133,13 @@ class SiteCrawler(object):
         if not url.is_valid():
             logging.info('Thread %s: "%s" is not a valid URL', threading.current_thread().name,  url.get_norm_url())
         if url.get_norm_url() in self.visited or url in self.pending_urls:
-            logging.info('Thread %s: "%s" already used before (it may be pending of crawling)', threading.current_thread().name, url.get_norm_url())
+            logging.debug('Thread %s: "%s" already used before (it may be pending of crawling)', threading.current_thread().name, url.get_norm_url())
         else:
             logging.info('Thread %s: "%s" added to pending URLs', threading.current_thread().name, url.get_norm_url())
             self.pending_urls.append(url)
 
     def get_pending_url(self):
         url = None
-        #try:
-        #self.url_list_concurrency_lock.acquire()
         sleeping_urls = []
         while len(self.pending_urls) > 0 and url is None:
             # Next URL is picked from the list of pending URLs and is added to the list of visited URLs
@@ -154,9 +150,6 @@ class SiteCrawler(object):
                 self.visited.add(tmp_url.get_norm_url())
                 url = tmp_url
         self.pending_urls.extend(sleeping_urls)
-        #finally:
-        #    self.url_list_concurrency_lock.release()
-        #threading.current_thread().name = "crawling: "+url.get_norm_url()
         return url
 
     def _process_link(self, link, url):
@@ -171,20 +164,15 @@ class SiteCrawler(object):
                 return None
 
         if self.domain == link.get_domain():
-            #self.url_list_concurrency_lock.acquire()
             self.add_url_to_list(link)
-            #self.url_list_concurrency_lock.release()
             return link
         elif link.get_tld() in self.tlds:
             logging.info("Thread %s: %s not in same domain, but in same TLD as %s",threading.current_thread().name,str(link),str(url))
-            #self.url_list_concurrency_lock.acquire()
             if link.get_norm_url() in self.visited:
                 logging.info('Thread %s: "%s" already used to extend list of seed URLs', threading.current_thread().name, link.get_norm_url())
-                #self.url_list_concurrency_lock.release()
             else:
                 logging.info('Thread %s: "%s" used to extend list of seed URLs', threading.current_thread().name, link.get_norm_url())
                 self.visited.add(link.get_norm_url())
-                #self.url_list_concurrency_lock.release()
                 self.multi_site_crawler.extend_seed_urls(link)
             return link
         else:
@@ -209,14 +197,14 @@ class SiteCrawler(object):
                     conn = http.client.HTTPSConnection(url.get_url_parts().netloc, timeout=self.conn_timeout)
             else:
                 conn = http.client.HTTPSConnection(url.get_url_parts().netloc, timeout=self.conn_timeout)
-            logging.info('Thread %s: Connection obtained: %s', threading.current_thread().name, url.get_norm_url())
+            logging.debug('Thread %s: Connection obtained: %s', threading.current_thread().name, url.get_norm_url())
 
             conn.request('GET', quote(url.get_url_parts().path, '?=&%/'), headers={'User-Agent': self.user_agent})
-            logging.info('Thread %s: Get request set %s', threading.current_thread().name, url.get_norm_url())
+            logging.debug('Thread %s: Get request set %s', threading.current_thread().name, url.get_norm_url())
 
             res = conn.getresponse()
 
-            logging.info('Thread %s: Response obtained from: %s', threading.current_thread().name, url.get_norm_url())
+            logging.debug('Thread %s: Response obtained from: %s', threading.current_thread().name, url.get_norm_url())
         except (http.client.HTTPException, EnvironmentError) as e:
             logging.info('Thread %s: HTTPException when trying to connect to "%s"', threading.current_thread().name,  url.get_norm_url())
             conn = None
@@ -274,10 +262,6 @@ class SiteCrawler(object):
         self.multi_site_crawler.new_running_crawler()
         url = self.get_pending_url()
         import sys
-        #if url:
-        #    sys.stderr.write("Craling: "+url.original_link+"\n")
-        #else:
-        #    sys.stderr.write("URL is none\n")
 
         if not self.is_interrupted() and url is not None:
             if not self.robots.fetch(url, self.max_attempts, self.domain):
@@ -312,8 +296,6 @@ class SiteCrawler(object):
                             listoflinks.append(li.get_norm_url())
                         for link in links_set:
                             proc_link = self._process_link(link, doc.url)
-                            #logging.info("Thread %s: After processing %s, _process_link says %s", threading.current_thread().name, str(link), str(proc_link))
-                        #logging.info("Thread %s: %s new links added to list after processing %s: %s", threading.current_thread().name, str(len(listoflinks)), url.get_norm_url(), str(listoflinks))
 
                         if doc.get_lang() is None:
                             logging.info("Thread %s: %s discarded: language detection is not reliable", threading.current_thread().name, url.get_norm_url())
@@ -321,12 +303,11 @@ class SiteCrawler(object):
                             logging.info("Thread %s: %s discarded: language not among languages of interest (detected=%s)",
                                          threading.current_thread().name, url.get_norm_url(), doc.get_lang())
                         else:
-                            logging.info("Thread %s: Applying scout to %s", threading.current_thread().name, url.get_norm_url())
+                            logging.debug("Thread %s: Applying scout to %s", threading.current_thread().name, url.get_norm_url())
                             self.run_scout(doc)
                             # The document is writen to the warc
-                            #sys.stderr.write("Document "+url.original_link+" was writen into WARC file at "+str(time.time())+"\n")
                             self.write_document(doc)
-                            logging.info("Thread %s: %s saved to disk", threading.current_thread().name, url.get_norm_url())
+                            logging.debug("Thread %s: %s saved to disk", threading.current_thread().name, url.get_norm_url())
             else:
                 if connection is not None:
                     connection.close()
@@ -343,7 +324,6 @@ class SiteCrawler(object):
         logging.info("Thread %s: Interrupt flag is %s", threading.current_thread().name, str(self.is_interrupted()))
         # If the crawler is allowed to continue crawling, wait until delay has passed and continue
         if not self.is_interrupted():
-            #sys.stderr.write("Document "+url.original_link+" going to sleep\n")
             self.sleep_thread = Thread(target=self._wait_and_queue)
             self.sleep_thread.daemon = True
             self.sleep_thread.name = self.sleep_thread.name + "_sleep"
@@ -353,10 +333,10 @@ class SiteCrawler(object):
 
     def _wait_and_queue(self):
         sleeptime = self.robots.get_delay() - (time.time() - self.last_connection)
-        logging.info("Thread %s: Crawler %s going to sleep for %s", threading.current_thread().name, self.domain, str(sleeptime))
+        logging.debug("Thread %s: Crawler %s going to sleep for %s", threading.current_thread().name, self.domain, str(sleeptime))
         if sleeptime > 0:
             time.sleep(sleeptime)
-        logging.info("Thread %s: Crawler %s woke up", threading.current_thread().name, self.domain)
+        logging.debug("Thread %s: Crawler %s woke up", threading.current_thread().name, self.domain)
         self.multi_site_crawler.crawler_ready(self)
         self.multi_site_crawler.new_done_crawler()
         
@@ -377,36 +357,26 @@ class SiteCrawler(object):
 
     def process_failed_url(self, url, retry=True):
         if not retry:
-            #self.url_list_concurrency_lock.acquire()
             self.visited.add(url.get_norm_url())
-            #self.url_list_concurrency_lock.release()
             logging.info('Thread %s: %s: the URL does not exist', threading.current_thread().name, url.get_norm_url())
         else:
             if url.get_norm_url() not in self.attempts:
-                #self.url_list_concurrency_lock.acquire()
                 self.add_url_to_list(url)
                 self.attempts[url.get_norm_url()] = 1
                 self.visited.remove(url.get_norm_url())
-                #self.url_list_concurrency_lock.release()
                 logging.info('Thread %s: %s: retrying (attempt 1)', threading.current_thread().name, url.get_norm_url())
             else:
                 if self.attempts[url.get_norm_url()] <= self.max_attempts:
                     logging.info('Thread %s: %s: retrying (attempt %s)', threading.current_thread().name, url, str(self.attempts[url.get_norm_url()]))
-                    #self.url_list_concurrency_lock.acquire()
                     self.add_url_to_list(url)
                     self.attempts[url.get_norm_url()] += 1
                     self.visited.remove(url.get_norm_url())
-                    #self.url_list_concurrency_lock.release()
                 else:
-                    #self.url_list_concurrency_lock.acquire()
                     del self.attempts[url.get_norm_url()]
                     self.visited.add(url.get_norm_url())
-                    #self.url_list_concurrency_lock.release()
                     logging.info('Thread %s: %s: given up after %s attempts', threading.current_thread().name, url.get_norm_url(), str(self.max_attempts))
 
     def write_document(self, doc):
-        #self.file_write_concurrency_lock.acquire()
-
         f_out = open(self.output_file_name, 'ab')
         writer = WARCWriter(f_out, gzip=True)
         metadata_writer = gzip.open(self.metadata_output_file_name, "ab")
@@ -424,7 +394,6 @@ class SiteCrawler(object):
         finally:
             f_out.close()
             metadata_writer.close()
-            #self.file_write_concurrency_lock.release()
 
     def get_status_object(self):
         targets = []
@@ -433,17 +402,11 @@ class SiteCrawler(object):
         return {'visited': self.visited, 'pendingurls': targets, 'attempts': self.attempts}
 
     def load_status(self, status_obj):
-        #try:
-            #self.file_write_concurrency_lock.acquire()
-            self.visited = status_obj['visited']
-            self.pending_urls = []
-            for u in status_obj['pendingurls']:
-                self.pending_urls.append(Link(u))
-            self.attempts = status_obj['attempts']
-
-        #finally:
-        #    self.file_write_concurrency_lock.release()
-
+        self.visited = status_obj['visited']
+        self.pending_urls = []
+        for u in status_obj['pendingurls']:
+            self.pending_urls.append(Link(u))
+        self.attempts = status_obj['attempts']
 
     def save_status(self):
         if self.dumpfile is not None:

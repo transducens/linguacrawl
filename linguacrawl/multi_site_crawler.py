@@ -109,7 +109,7 @@ class MultiSiteCrawler(object):
 
     def _pick_crawler_and_run_one_doc(self):
         while not self.interrupt and (self.get_pending_crawlers() > 0 or self.get_running_crawlers() > 0):
-            sys.stderr.write("Thread "+threading.current_thread().name+" at "+str(time.time())+" when "+str(len(self.pending_crawlers))+" crawlers are available\n")
+            #sys.stderr.write("Thread "+threading.current_thread().name+" at "+str(time.time())+" when "+str(len(self.pending_crawlers))+" crawlers are available\n")
             crawler = self.pop_crawler_from_heap()
             if crawler is not None and not crawler.is_interrupted():
                 crawler.crawl_one_page()
@@ -123,7 +123,7 @@ class MultiSiteCrawler(object):
     def pop_crawler_from_heap(self):
         try:
             self.pending_to_crawl_concurrency_lock.acquire()
-            #logging.info("Number of crawlers available: %s",str(len(self.pending_crawlers)))
+            logging.debug("Number of crawlers available: %s",str(len(self.pending_crawlers)))
             priority, crawler = heapq.heappop(self.pending_crawlers)
         except IndexError:
             crawler = None
@@ -134,7 +134,7 @@ class MultiSiteCrawler(object):
     def push_crawler_to_heap(self, crawler):
         try:
             self.pending_to_crawl_concurrency_lock.acquire()
-            logging.info("Crawler %s added to heap again with %s pending URLs", crawler.domain, str(len(crawler.pending_urls)))
+            logging.debug("Crawler %s added to heap again with %s pending URLs", crawler.domain, str(len(crawler.pending_urls)))
             heapq.heappush(self.pending_crawlers, (crawler.priority, crawler))
         finally:
             self.pending_to_crawl_concurrency_lock.release()
@@ -152,12 +152,12 @@ class MultiSiteCrawler(object):
 
     # Method that expands the list of site-crawlers by adding any URL in the new_seed_urls list
     def _expand_crawlers_list(self):
-        logging.info("Expanding_crawlers_list")
+        #logging.debug("Expanding_crawlers_list")
         try:
             self.new_seed_urls_concurrency_lock.acquire()
-            logging.info("New URLs to be added: %s", str(len(self.new_seed_urls)))
+            #logging.debug("New URLs to be added: %s", str(len(self.new_seed_urls)))
             if len(self.new_seed_urls) > 0:
-                logging.info("Expanding_crawlers_list; before: %s", str(len(self.domain_crawlers)))
+                #logging.debug("Expanding_crawlers_list; before: %s", str(len(self.domain_crawlers)))
                 for d, url_set in self.new_seed_urls.items():
                     url_list = list(url_set)
                     if d in self.domain_crawlers:
@@ -172,7 +172,7 @@ class MultiSiteCrawler(object):
                         self.push_crawler_to_heap(crawler)
                         self.domain_crawlers[d] = crawler
                         self.curr_crawlers += 1
-                logging.info("Expanding_crawlers_list; after: %s", str(len(self.domain_crawlers)))
+                #logging.info("Expanding_crawlers_list; after: %s", str(len(self.domain_crawlers)))
 
         finally:
             self.new_seed_urls_concurrency_lock.release()
@@ -184,7 +184,7 @@ class MultiSiteCrawler(object):
         list_of_threads = []
         for t in threading.enumerate():
             list_of_threads.append(t.getName())
-        logging.info("List of running threads: %s", " _ ".join(list_of_threads))
+        logging.debug("List of running threads: %s", " _ ".join(list_of_threads))
 
         self.new_seed_urls_concurrency_lock.acquire()
         for domain, crawler in self.domain_crawlers.items():

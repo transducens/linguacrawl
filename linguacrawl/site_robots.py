@@ -3,6 +3,7 @@ import urllib.request
 from ssl import CertificateError
 import socket
 import http.client
+import threading
 from threading import Lock
 import logging
 
