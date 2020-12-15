@@ -68,9 +68,9 @@ class SiteRobots:
                               url.get_norm_url())
                 rp = urllib.robotparser.RobotFileParser()
                 rp.disallow_all = True
-            else:
-                logging.error("WARNING: robots correctly read for %s",
-                              url.get_norm_url())
+             #else:
+             #    logging.error("WARNING: robots correctly read for %s",
+             #                  url.get_norm_url())
 
             self._site_robots[url.get_sub_domain()] = rp
             subdomain_delay = self._get_delay_for_url(url)

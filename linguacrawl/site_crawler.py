@@ -122,6 +122,8 @@ class SiteCrawler(object):
         self.crawlstarts = int(time.time())
         # Time of the last connection; it is used to make sure that delay is fulfilled
         self.last_connection = self.crawlstarts - self.default_delay
+        # Times a link is unsuccessfully fetched
+        self.fails_fetch_url = 0
 
     def extend_url_list(self, url_list):
         for u in url_list:
@@ -261,67 +263,74 @@ class SiteCrawler(object):
     def crawl_one_page(self):
         self.multi_site_crawler.new_running_crawler()
         url = self.get_pending_url()
-        import sys
+        if url is None:
+            self.fails_fetch_url += 1
+            #If unsuccessful to fetch a url after 3 consecutive trials, interrupt crawling
+            if self.fails_fetch_url >= 3:
+                self.interrupt_crawl()
+        else:
+            self.fails_fetch_url = 0
 
-        if not self.is_interrupted() and url is not None:
-            if not self.robots.fetch(url, self.max_attempts, self.domain):
-                logging.info("Thread %s: robots.txt forbids crawling URL: %s", threading.current_thread().name, url.get_norm_url())
-                return
-            connection, server_response = self.connect_to_server(url)
-
-            # If response is 2XX, the web page is processed
-            if server_response is not None and self.deal_with_response_status(url, server_response):
-                # Check content type
-                content_type = server_response.getheader('Content-Type')
-                doc = None
-                if content_type is not None and not re.search(self.accepted_content_type, content_type):
-                    logging.info("Thread %s: %s discarded: wrong file type", threading.current_thread().name, url.get_norm_url())
+            if not self.is_interrupted():
+                if not self.robots.fetch(url, self.max_attempts, self.domain):
+                    logging.info("Thread %s: robots.txt forbids crawling URL: %s", threading.current_thread().name, url.get_norm_url())
                 else:
-                    doc = WebDocument(server_response, url, self.max_attempts, self.fasttextmodel)
-                connection.close()
+                    connection, server_response = self.connect_to_server(url)
 
-                if doc is None:
-                    logging.info("Thread %s: %s could not be processed", threading.current_thread().name, url.get_norm_url())
-                else:
-                    logging.info("Thread %s: %s document downloaded", threading.current_thread().name, url.get_norm_url())
-                    if not doc.utf_text:
-                        logging.info("Thread %s: %s document does not content text or could not be converted into UTF", threading.current_thread().name, url.get_norm_url())
-                    else:
-                        logging.info("Thread %s: %s document contains text", threading.current_thread().name, url.get_norm_url())
-                        links_set = doc.get_link_set()
-                        # We can shuffle links to avoid to get biased by the structure of the site
-                        # random.shuffle(linksset)
-                        listoflinks = []
-                        for li in links_set:
-                            listoflinks.append(li.get_norm_url())
-                        for link in links_set:
-                            proc_link = self._process_link(link, doc.url)
-
-                        if doc.get_lang() is None:
-                            logging.info("Thread %s: %s discarded: language detection is not reliable", threading.current_thread().name, url.get_norm_url())
-                        elif doc.get_lang() not in self.langs_of_interest:
-                            logging.info("Thread %s: %s discarded: language not among languages of interest (detected=%s)",
-                                         threading.current_thread().name, url.get_norm_url(), doc.get_lang())
+                    # If response is 2XX, the web page is processed
+                    if server_response is not None and self.deal_with_response_status(url, server_response):
+                        # Check content type
+                        content_type = server_response.getheader('Content-Type')
+                        doc = None
+                        if content_type is not None and not re.search(self.accepted_content_type, content_type):
+                            logging.info("Thread %s: %s discarded: wrong file type", threading.current_thread().name, url.get_norm_url())
                         else:
-                            logging.debug("Thread %s: Applying scout to %s", threading.current_thread().name, url.get_norm_url())
-                            self.run_scout(doc)
-                            # The document is writen to the warc
-                            self.write_document(doc)
-                            logging.debug("Thread %s: %s saved to disk", threading.current_thread().name, url.get_norm_url())
-            else:
-                if connection is not None:
-                    connection.close()
+                            doc = WebDocument(server_response, url, self.max_attempts, self.fasttextmodel)
+                        connection.close()
 
-            if self.max_size is not None and self.crawl_size > self.max_size:
-                logging.info("Thread %s: %s interrupted because of size limit reached", threading.current_thread().name, url.get_norm_url())
-                self.interrupt_crawl()
-            elif self.max_time is not None and time.time() - self.crawlstarts > self.max_time:
-                logging.info("Thread %s: %s interrupted because of time limit reached", threading.current_thread().name, url.get_norm_url())
-                self.interrupt_crawl()
-            elif len(self.pending_urls) == 0:
-                logging.info("Thread %s: %s interrupted because no more URLs pending", threading.current_thread().name, url.get_norm_url())
-                self.interrupt_crawl()
-        logging.info("Thread %s: Interrupt flag is %s", threading.current_thread().name, str(self.is_interrupted()))
+                        if doc is None:
+                            logging.info("Thread %s: %s could not be processed", threading.current_thread().name, url.get_norm_url())
+                        else:
+                            logging.info("Thread %s: %s document downloaded", threading.current_thread().name, url.get_norm_url())
+                            if not doc.utf_text:
+                                logging.info("Thread %s: %s document does not content text or could not be converted into UTF", threading.current_thread().name, url.get_norm_url())
+                            else:
+                                logging.info("Thread %s: %s document contains text", threading.current_thread().name, url.get_norm_url())
+                                links_set = doc.get_link_set()
+                                # We can shuffle links to avoid to get biased by the structure of the site
+                                # random.shuffle(linksset)
+                                listoflinks = []
+                                for li in links_set:
+                                    listoflinks.append(li.get_norm_url())
+                                for link in links_set:
+                                    proc_link = self._process_link(link, doc.url)
+
+                                if doc.get_lang() is None:
+                                    logging.info("Thread %s: %s discarded: language detection is not reliable", threading.current_thread().name, url.get_norm_url())
+                                elif doc.get_lang() not in self.langs_of_interest:
+                                    logging.info("Thread %s: %s discarded: language not among languages of interest (detected=%s)",
+                                                 threading.current_thread().name, url.get_norm_url(), doc.get_lang())
+                                else:
+                                    logging.debug("Thread %s: Applying scout to %s", threading.current_thread().name, url.get_norm_url())
+                                    self.run_scout(doc)
+                                    # The document is writen to the warc
+                                    self.write_document(doc)
+                                    logging.debug("Thread %s: %s saved to disk", threading.current_thread().name, url.get_norm_url())
+                    else:
+                        if connection is not None:
+                            connection.close()
+
+                    if self.max_size is not None and self.crawl_size > self.max_size:
+                        logging.info("Thread %s: %s interrupted because of size limit reached", threading.current_thread().name, url.get_norm_url())
+                        self.interrupt_crawl()
+                    elif self.max_time is not None and time.time() - self.crawlstarts > self.max_time:
+                        logging.info("Thread %s: %s interrupted because of time limit reached", threading.current_thread().name, url.get_norm_url())
+                        self.interrupt_crawl()
+                    elif len(self.pending_urls) == 0:
+                        logging.info("Thread %s: %s interrupted because no more URLs pending", threading.current_thread().name, url.get_norm_url())
+                        self.interrupt_crawl()
+
+            logging.info("Thread %s: Interrupt flag is %s", threading.current_thread().name, str(self.is_interrupted()))
         # If the crawler is allowed to continue crawling, wait until delay has passed and continue
         if not self.is_interrupted():
             self.sleep_thread = Thread(target=self._wait_and_queue)
