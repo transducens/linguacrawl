@@ -94,7 +94,7 @@ Three files may be created for every web host visited:
 * a file with extension `.state` that contains the internal state of the crawler when crawling is stopped, to allow 
 resuming the crawl at some point in the future, and
 * a file with extension `.bitextor.gz` that consists of a TSV list of fields: URL, language code, HTML and
-text extracted with the library [alcazar](https://pypi.org/project/alcazar/); some of these fields can be
+text extracted with the library [html2text](https://pypi.org/project/html2text); some of these fields can be
 used by the tool Bitextor to try to identify parallel data. In the near future, this tool will prove a script to
 transform these fields into the format expected by Bitextor.
 
