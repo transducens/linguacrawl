@@ -1,7 +1,7 @@
 import re
 import cchardet
 from .link import Link
-import alcazar.bodytext
+import html2text
 import cld3
 import pycountry
 import logging
@@ -63,10 +63,12 @@ class WebDocument(object):
             #Extracting actual content of the page and checking language
             utf_text_to_deboilerpipe = re.sub(r'<?xml.*encoding.*?>', '<?xml version="1.0"?>', self.utf_text)
             try:
-                article = alcazar.bodytext.parse_article(utf_text_to_deboilerpipe)
-                if article.body_text:
+                h = html2text.HTML2Text()
+                h.ignore_links = True
+                article = h.handle(utf_text_to_deboilerpipe)
+                if article:
                     if self.fasttextmodel is not None:
-                        label=self.fasttextmodel.predict(article.body_text.replace("\n"," "))
+                        label=self.fasttextmodel.predict(article.replace("\n"," "))
                         logging.info("Fasttext identified %s category for page %s", str(label), self.url)
                         if "__label__" in label[0][0]:
                             self._lang = label[0][0].strip().split("_")[-1]
@@ -74,7 +76,7 @@ class WebDocument(object):
                                 langinfo = pycountry.languages.get(alpha_3=self._lang)
                                 self._lang = langinfo.alpha_2
                     else:
-                        self._lang = cld3.get_language(article.body_text)
+                        self._lang = cld3.get_language(article)
                         if not self._lang.is_reliable:
                             self._lang = None
                         else:
