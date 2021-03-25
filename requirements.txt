@@ -1,5 +1,5 @@
 cchardet==2.1.5
-pyyaml==5.3
+pyyaml==5.4
 tldextract==2.2.2
 urllib3==1.25.8
 Cython==0.29.15
