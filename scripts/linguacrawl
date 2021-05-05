@@ -22,16 +22,6 @@ def main(argv):
     logging.basicConfig(level=logging.INFO if config["verbose"] else logging.ERROR)
 
     
-    seed_urls = []
-    if "seed_urls" not in config or config["seed_urls"] is None:
-        with open(config["seed_urls_from_file"], "r") as reader:
-            config["seed_urls"] = []
-            for line in reader:
-                seed_urls.append(line.strip())
-    else:
-        for line in config["seed_urls"]:
-            seed_urls.append(line)
-    
     crawler = MultiSiteCrawler(config, BitextScout(config["scout_steps"], config["langs_of_interest"], config["min_langs_in_site"],
                                                    config["mandatory_lang"], config["min_percent_mandatory_lang"]))
     

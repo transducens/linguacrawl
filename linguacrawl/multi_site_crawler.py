@@ -15,10 +15,11 @@ class MultiSiteCrawler(object):
 
         self.config = config
         urls_per_domain = {}
+
         if "seed_urls_from_file" in config:
             with open(config["seed_urls_from_file"],"r") as fseeds:
                 for seed_url in fseeds:
-                    url = Link(seed_url)
+                    url = Link(seed_url.strip())
                     if url.get_domain() not in urls_per_domain:
                         urls_per_domain[url.get_domain()] = []
                     urls_per_domain[url.get_domain()].append(url)
