@@ -23,8 +23,9 @@ def main(argv):
 
     
     seed_urls = []
-    if config["seed_urls"] is None:
-        with open(config.seed_urls_from_file, "r") as reader:
+    if "seed_urls" not in config or config["seed_urls"] is None:
+        with open(config["seed_urls_from_file"], "r") as reader:
+            config["seed_urls"] = []
             for line in reader:
                 seed_urls.append(line.strip())
     else:
