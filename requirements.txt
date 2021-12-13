@@ -4,7 +4,7 @@ tldextract==3.1.0
 urllib3==1.25.8
 Cython==0.29.23
 pycld3==0.22
-lxml==4.6.3
+lxml==4.6.5
 idna==2.9
 chardet==3.0.4
 certifi==2020.12.5
