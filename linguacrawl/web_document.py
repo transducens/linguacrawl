@@ -2,7 +2,7 @@ import re
 import cchardet
 from .link import Link
 import html2text
-import cld2
+import pycld2 as cld2
 import pycountry
 import logging
 
@@ -76,11 +76,12 @@ class WebDocument(object):
                                 langinfo = pycountry.languages.get(alpha_3=self._lang)
                                 self._lang = langinfo.alpha_2
                     else:
-                        self._lang = cld3.get_language(article)
-                        if not self._lang.is_reliable:
+                        #self._lang = cld2.get_language(article)
+                        reliable, text_bytes, language = cld2.detect(article)
+                        if not reliable:
                             self._lang = None
                         else:
-                            self._lang = self._lang.language
+                            self._lang = language
             except Exception as e:
                 logging.error(str(e))
                 self._lang = None
