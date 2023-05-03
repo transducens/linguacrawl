@@ -5,7 +5,7 @@ import html2text
 import cld3
 import pycountry
 import logging
-
+from urllib.parse import urljoin, urlparse
 
 class WebDocument(object):
     def __init__(self, res, url, max_attempts=1, custom_fasttext_langid_model=None):
@@ -52,9 +52,22 @@ class WebDocument(object):
                         pass
         return None, ''
 
+    def is_url_absolute(self, url):
+        absolute = False
+        # urlib module raises a "ValueError: Invalid IPv6 URL" error if the url contains special characters
+        try:
+            absolute = bool(urlparse(url).netloc)
+        except:
+            absolute = True
+        return absolute
+
     def get_link_set(self):
         if self.successfully_read and self.links is None:
             extracted_links = re.findall(r"href\s*=\s*['\"]\s*([^'\"]+)['\"]", self.utf_text)
+            for idx, link in enumerate(extracted_links):
+                if not self.is_url_absolute(link):
+                    # Resolve relative URL
+                    extracted_links[idx] = urljoin(str(self.url), link)
             self.links = [Link(link, self.url) for link in set(extracted_links)]
         return self.links
 

@@ -54,9 +54,9 @@ class Link(object):
                     self._url_parts = self._url_parts._replace(netloc=self.parent_url.get_url_parts().netloc)
                 if len(self._url_parts.scheme) == 0 and self.parent_url is not None:
                     self._url_parts = self._url_parts._replace(scheme=self.parent_url.get_url_parts().scheme)
-                normalised_path = normpath(self._url_parts.path)
-                normalised_path = re.sub(r"^\.+", "", normalised_path)
-                self._url_parts = self._url_parts._replace(path=normalised_path)
+                #normalised_path = normpath(self._url_parts.path)
+                #normalised_path = re.sub(r"^\.+", "", normalised_path)
+                #self._url_parts = self._url_parts._replace(path=normalised_path)
             except ValueError:
                 self._url_parts = urlparse("")
         return self._url_parts
